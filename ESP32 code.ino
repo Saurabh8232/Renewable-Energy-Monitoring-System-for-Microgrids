@@ -1,16 +1,12 @@
 #include <PZEM004Tv30.h>
 #include <Wire.h>
 #include <DHT.h>
-#include <SPI.h>
-#include <RTClib.h>
-#include <SD.h>
 #include <BH1750.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_INA219.h>
 
 #define DHTPIN 4
-#define SD_CS 5
 #define DHTTYPE DHT11
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
@@ -37,53 +33,6 @@ float lightIntencity = 0.0, battaryVoltage = 0.0;
 String Time;
 String Date;
 String Ebme = "0", Esolor = "0", Ebattary = "0" EsdCard = "0", rtcE = "0";
-
-template<typename A>
-void write(String File_name, A Data) {
-  String path = String("/ESP32/") + File_name + ".txt";
-  File file = SD.open(path, FILE_WRITE);
-  if (file) {
-    file.println(String(Data));
-    file.close();
-    writeE = "0";
-  } else {
-    writeE = "1";
-  }
-}
-
-String fetch(String File_name) {
-  String path = String("/ESP32/") + File_name + ".txt";
-  File file = SD.open(path);
-  if (!file) return "";
-  String data = file.readStringUntil('\n');
-  data.trim();
-  file.close();
-  return data;
-}
-
-void Rtc() {
-  if (!rtcAvailable) return;
-
-  DateTime now = rtc.now();
-  int hour = now.hour();
-  int currentDay = now.day();
-
-  String ampm = (hour >= 12) ? "PM" : "AM";
-  if (hour > 12) hour -= 12;
-  if (hour == 0) hour = 12;
-
-  Time = String(hour) + ":" + (now.minute() < 10 ? "0" : "") + String(now.minute()) + ":" + (now.second() < 10 ? "0" : "") + String(now.second()) + " " + ampm;
-  Date = String(currentDay) + "-" + String(now.month()) + "-" + String(now.year());
-}
-
-void DataLogg() {
-  String storedDate = fetch("Date");
-  if (Date != storedDate) {
-    File file = SD.open("Logged_Data.csv", FILE_APPEND);
-    file.println();
-    file.close();
-  }
-}
 
 float voltageToSoC(float v) {
   if (v >= 4.20) return 100.0;
@@ -154,14 +103,6 @@ void setup() {
   Wire.begin(21, 22);
   dht.begin();
 
-  if (rtc.begin()) {
-    rtcAvailable = true;
-    rtcE = "0";
-  } else {
-    rtcE = "1";
-  }
-  // rtc.adjust(DateTime(2025, 7, 28, 23, 20, 0));  //  Uncomment if needed YYYY/MM/DD  HH/MM/SS
-
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
     Ebme = "1";
   } else {
@@ -179,8 +120,6 @@ void setup() {
   if (!battary.begin()) Ebattary = '1';
   else Ebattary = '0';
 
-  if (!SD.begin(SD_CS)) EsdCard = "1";
-  else EsdCard = "0";
   lastSampleTime = millis();
 }
 
