@@ -10,7 +10,7 @@ def receive_data():
 
 @app.route('/')
 def home():
-    return "ESP32 Data Receiver is running "
+    return "https://renewable-energy-monitoring-system-for.onrender.com/esp32-data "
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
