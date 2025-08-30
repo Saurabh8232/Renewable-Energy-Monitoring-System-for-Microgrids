@@ -5,122 +5,301 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_INA219.h>
+#include <math.h>
 
 #define DHTPIN 4
 #define DHTTYPE DHT11
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
+
 const float BATTERY_CAPACITY_mAh = 2000.0;
 const uint32_t SAMPLE_INTERVAL_MS = 1000;
+
 unsigned long lastSampleTime = 0;
 float remaining_mAh = BATTERY_CAPACITY_mAh * 0.5;
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 PZEM004Tv30 pzem(Serial2, 16, 17);
-Adafruit_INA219 solor(0x40);
-Adafruit_INA219 battary(0x41);
+Adafruit_INA219 solar(0x40);
+Adafruit_INA219 battery(0x41);
 DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
 
-float frequency = 0.0, PowerFector = 0.0;
+float frequency = 0.0, powerFactor = 0.0;
 float voltage = 0.0, current = 0.0;
 float power = 0.0, energy = 0.0;
 float temperature = 0.0, humidity = 0.0;
-float solorVoltage = 0.0, solorCurrent = 0.0;
-float solorPower = 0.0, battaryPercentage = 0.0;
-float lightIntencity = 0.0, battaryVoltage = 0.0;
+float solarVoltage = 0.0, solarCurrent = 0.0;
+float solarPower = 0.0, batteryPercentage = 0.0;
+float lightIntensity = 0.0, batteryVoltage = 0.0;
 
-String Time;
-String Date;
-String Ebme = "0", Esolor = "0", Ebattary = "0" EsdCard = "0", rtcE = "0";
+// Error flags (bool instead of String)
+bool E_light = false, E_solar = false, E_battery = false, Epem = false, Etem = false;
 
-float voltageToSoC(float v) {
-  if (v >= 4.20) return 100.0;
-  if (v >= 4.10) return 95.0;
-  if (v >= 4.00) return 90.0;
-  if (v >= 3.90) return 80.0;
-  if (v >= 3.80) return 70.0;
-  if (v >= 3.70) return 60.0;
-  if (v >= 3.60) return 45.0;
-  if (v >= 3.50) return 30.0;
-  if (v >= 3.40) return 15.0;
-  if (v >= 3.30) return 5.0;
+// ---- Error Display with rotation ----
+unsigned long lastErrorSwitch = 0;
+int currentErrorIndex = 0;
+
+void displayErrors()
+{
+  // Collect error labels
+  const char *errors[5];
+  int count = 0;
+
+  if (E_light)
+    errors[count++] = "Light";
+  if (E_solar)
+    errors[count++] = "Solar";
+  if (E_battery)
+    errors[count++] = "Battery";
+  if (Epem)
+    errors[count++] = "PZEM";
+  if (Etem)
+    errors[count++] = "DHT";
+
+  unsigned long now = millis();
+
+  if (count > 0)
+  {
+    if (now - lastErrorSwitch >= 2000)
+    { // rotate slower (2s)
+      currentErrorIndex = (currentErrorIndex + 1) % count;
+      lastErrorSwitch = now;
+    }
+
+    display.clearDisplay();
+    display.setCursor(0, 10);
+    display.print("Err: ");
+    display.print(errors[currentErrorIndex]);
+    display.display();
+  }
+  else
+  {
+    display.clearDisplay();
+    display.setCursor(0, 10);
+    display.print("Err: None");
+    display.display();
+  }
+}
+
+float voltageToSoC(float v)
+{
+  if (v >= 4.20)
+    return 100.0;
+  if (v >= 4.10)
+    return 95.0;
+  if (v >= 4.00)
+    return 90.0;
+  if (v >= 3.90)
+    return 80.0;
+  if (v >= 3.80)
+    return 70.0;
+  if (v >= 3.70)
+    return 60.0;
+  if (v >= 3.60)
+    return 45.0;
+  if (v >= 3.50)
+    return 30.0;
+  if (v >= 3.40)
+    return 15.0;
+  if (v >= 3.30)
+    return 5.0;
   return 0.0;
 }
 
-void pzem004t() {
-  if (!isnan(pzem.voltage())) voltage = pzem.voltage();
-  if (!isnan(pzem.current())) current = pzem.current();
-  if (!isnan(pzem.energy())) energy = pzem.energy();
-  if (!isnan(pzem.power())) power = pzem.power();
-  if (!isnan(pzem.pf())) PowerFector = pzem.pf();
-  if (!isnan(pzem.frequency())) frequency = pzem.frequency();
+void readPZEM()
+{
+  bool ok = true;
+  float v = pzem.voltage();
+  if (!isnan(v))
+    voltage = v;
+  else
+    ok = false;
+  float c = pzem.current();
+  if (!isnan(c))
+    current = c;
+  else
+    ok = false;
+  float e = pzem.energy();
+  if (!isnan(e))
+    energy = e;
+  else
+    ok = false;
+  float p = pzem.power();
+  if (!isnan(p))
+    power = p;
+  else
+    ok = false;
+  float pf = pzem.pf();
+  if (!isnan(pf))
+    powerFactor = pf;
+  else
+    ok = false;
+  float f = pzem.frequency();
+  if (!isnan(f))
+    frequency = f;
+  else
+    ok = false;
+  Epem = !ok;
 }
 
-void Solor() {
-  solorVoltage = solor.getBusVoltage_V();
-  solorCurrent = solor.getCurrent_mA();
-  solorPower = solor.getPower_mW();
+void readSolar()
+{
+  solarVoltage = solar.getBusVoltage_V();
+  solarCurrent = solar.getCurrent_mA();
+  solarPower = solar.getPower_mW();
 }
 
-void Battary() {
+void readBattery()
+{
   unsigned long now = millis();
-  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
-    float current_mA = battary.getCurrent_mA();
-    battaryVoltage = battary.getBusVoltage_V();
+  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS)
+  {
+    float current_mA = battery.getCurrent_mA();
+    batteryVoltage = battery.getBusVoltage_V();
 
-    float dt_s = (now - lastSampleTime) / 1000.0;
+    float dt_s = (now - lastSampleTime) / 1000.0f;
     lastSampleTime = now;
-    float delta_mAh = current_mA * (dt_s / 3600.0);
+
+    float delta_mAh = current_mA * (dt_s / 3600.0f);
     remaining_mAh -= delta_mAh;
-    if (remaining_mAh < 0) remaining_mAh = 0;
-    if (remaining_mAh > BATTERY_CAPACITY_mAh) remaining_mAh = BATTERY_CAPACITY_mAh;
-    battaryPercentage = (remaining_mAh / BATTERY_CAPACITY_mAh) * 100.0;
+
+    if (remaining_mAh < 0)
+      remaining_mAh = 0;
+    if (remaining_mAh > BATTERY_CAPACITY_mAh)
+      remaining_mAh = BATTERY_CAPACITY_mAh;
+
+    batteryPercentage = (remaining_mAh / BATTERY_CAPACITY_mAh) * 100.0f;
 
     static unsigned long lastCorrection = 0;
-    if (now - lastCorrection >= 5UL * 60UL * 1000UL || fabs(current_mA) < 20.0) {
-      float v_soc = voltageToSoC(battaryVoltage);
-      float voltage_est_mAh = (v_soc / 100.0) * BATTERY_CAPACITY_mAh;
-      remaining_mAh = remaining_mAh * 0.90 + voltage_est_mAh * 0.10;
+    if (now - lastCorrection >= 5UL * 60UL * 1000UL || fabs(current_mA) < 20.0f)
+    {
+      float v_soc = voltageToSoC(batteryVoltage);
+      float voltage_est_mAh = (v_soc / 100.0f) * BATTERY_CAPACITY_mAh;
+      remaining_mAh = remaining_mAh * 0.90f + voltage_est_mAh * 0.10f;
       lastCorrection = now;
     }
   }
 }
 
-void tempSensor() {
-  if (isnan(humidity) || isnan(temperature)) return;
-  humidity = dht.readHumidity();
-  temperature = dht.readTemperature();
+void readDHT()
+{
+  bool ok = true;
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  if (!isnan(h))
+    humidity = h;
+  else
+    ok = false;
+  if (!isnan(t))
+    temperature = t;
+  else
+    ok = false;
+  Etem = !ok;
 }
 
-void lightSensor() {
-  lightIntencity = lightMeter.readLightLevel();
-  if (lightIntencity < 0) Ebme = "1";
+void readLight()
+{
+  float lux = lightMeter.readLightLevel();
+  if (!isnan(lux) && lux >= 0)
+  {
+    lightIntensity = lux;
+    E_light = false;
+  }
+  else
+  {
+    E_light = true;
+  }
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Wire.begin(21, 22);
   dht.begin();
 
-  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-    Ebme = "1";
-  } else {
-    Ebme = "0";
+  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
+  {
+    E_light = true;
   }
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    for (;;) }
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
+    Serial.println(F("SSD1306 allocation failed"));
+    while (true)
+    {
+      delay(100);
+    }
+  }
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  if (!solor.begin()) Esolor = '1';
-  else Esolor = '0';
-  if (!battary.begin()) Ebattary = '1';
-  else Ebattary = '0';
+  if (!solar.begin())
+    E_solar = true;
+  else
+    E_solar = false;
+  if (!battery.begin())
+    E_battery = true;
+  else
+    E_battery = false;
 
   lastSampleTime = millis();
 }
 
-void loop() {}
+void loop()
+{
+  readPZEM();
+  readSolar();
+  readBattery();
+  readDHT();
+  readLight();
+  displayErrors();
+
+  // ---- Serial Debug Output ----
+  Serial.print("V:");
+  Serial.print(voltage);
+  Serial.print(" I:");
+  Serial.print(current);
+  Serial.print(" P:");
+  Serial.print(power);
+  Serial.print(" E:");
+  Serial.print(energy);
+  Serial.print(" PF:");
+  Serial.print(powerFactor);
+  Serial.print(" F:");
+  Serial.print(frequency);
+
+  Serial.print(" | SV:");
+  Serial.print(solarVoltage);
+  Serial.print(" SI:");
+  Serial.print(solarCurrent);
+  Serial.print(" SP:");
+  Serial.print(solarPower);
+
+  Serial.print(" | BV:");
+  Serial.print(batteryVoltage);
+  Serial.print(" SoC%: ");
+  Serial.print(batteryPercentage);
+
+  Serial.print(" | T:");
+  Serial.print(temperature);
+  Serial.print(" H:");
+  Serial.print(humidity);
+
+  Serial.print(" | Lux:");
+  Serial.print(lightIntensity);
+
+  Serial.print(" | Errs -> L:");
+  Serial.print(E_light);
+  Serial.print(" S:");
+  Serial.print(E_solar);
+  Serial.print(" B:");
+  Serial.print(E_battery);
+  Serial.print(" P:");
+  Serial.print(Epem);
+  Serial.print(" D:");
+  Serial.print(Etem);
+  Serial.println();
+  // ------------------------------
+}
