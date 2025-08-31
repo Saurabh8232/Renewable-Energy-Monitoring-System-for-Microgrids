@@ -62,7 +62,7 @@ def receive_data():
 
 @app.route('/')
 def home():
-    return "ESP32 API is running. Send data to /esp32-data "
+    return "ESP32 API is running. Send data to /esp32-data , thankyou"
 
 
 if __name__ == '__main__':
