@@ -88,6 +88,9 @@ def receive_data():
                 "CloudPercent": cloudcover,
                 "WindSpeed": windspeed,
                 "RainInMM": precipitation,
+                "deviceIP": IP,
+                "latitude": LAT,
+                "longitude": LON,
             }.items()
             if v is not None
         }
