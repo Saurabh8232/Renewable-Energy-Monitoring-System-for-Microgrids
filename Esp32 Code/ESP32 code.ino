@@ -188,6 +188,7 @@ void dataSend()
       doc["latitude"] = Latitude;
       doc["longitude"] = Longitude;
       doc["THINGSBOARD_TOKEN"] = Token;
+      doc["deviceIP"] = WiFi.localIP().toString();
 
       String jsonData;
       serializeJson(doc, jsonData);
