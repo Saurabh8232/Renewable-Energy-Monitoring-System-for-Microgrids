@@ -158,7 +158,7 @@ void dataSend() {
       doc["Current"] = current;
       doc["Power"] = power;
       doc["Energy"] = energy;
-      doc["SolarVoltage"] = solarVoltage;
+      doc["solarVoltage"] = solarVoltage;
       doc["solarCurrent"] = solarCurrent;
       doc["solarPower"] = solarPower;
       doc["batteryPercentage"] = batteryPercentage;
@@ -345,3 +345,4 @@ void loop() {
   displayErrors();
   serialData();
 }
+
