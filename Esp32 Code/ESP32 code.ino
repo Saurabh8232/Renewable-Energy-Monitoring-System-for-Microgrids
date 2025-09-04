@@ -30,6 +30,9 @@ float remaining_mAh;
 String ssid = "";
 String password = "";
 String serverName = "";
+String Longitude = "";
+String Latitude = "";
+String Token = "";
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 PZEM004Tv30 pzem(Serial2, 16, 17);
@@ -49,34 +52,47 @@ float lightIntensity = 0.0, batteryVoltage = 0.0;
 // Error flags (bool instead of String)
 bool E_light = false, E_solar = false, E_battery = false, Epem = false, Etem = false, Ewifi = false, Ehttp = false, Esdcard = false;
 
-String fetch(String File_name) {
+String fetch(String File_name)
+{
   String path = String("/ESP32/") + File_name + ".txt";
   File file = SD.open(path);
-  if (!file) return "";
+  if (!file)
+    return "";
   String data = file.readStringUntil('\n');
   data.trim();
   file.close();
   return data;
 }
 
-void displayErrors() {
+void displayErrors()
+{
   // Collect error labels
   const char *errors[8];
   int count = 0;
 
-  if (E_light) errors[count++] = "Light";
-  if (E_solar) errors[count++] = "Solar";
-  if (E_battery) errors[count++] = "Battery";
-  if (Epem) errors[count++] = "PZEM";
-  if (Etem) errors[count++] = "DHT";
-  if (Ewifi) errors[count++] = "WiFi";
-  if (Ehttp) errors[count++] = "HTTP";
-  if (Esdcard) errors[count++] = "SDcard";
+  if (E_light)
+    errors[count++] = "Light";
+  if (E_solar)
+    errors[count++] = "Solar";
+  if (E_battery)
+    errors[count++] = "Battery";
+  if (Epem)
+    errors[count++] = "PZEM";
+  if (Etem)
+    errors[count++] = "DHT";
+  if (Ewifi)
+    errors[count++] = "WiFi";
+  if (Ehttp)
+    errors[count++] = "HTTP";
+  if (Esdcard)
+    errors[count++] = "SDcard";
 
   unsigned long now = millis();
 
-  if (count > 0) {
-    if (now - lastErrorSwitch >= 2000) {  // rotate slower (2s)
+  if (count > 0)
+  {
+    if (now - lastErrorSwitch >= 2000)
+    { // rotate slower (2s)
       currentErrorIndex = (currentErrorIndex + 1) % count;
       lastErrorSwitch = now;
     }
@@ -86,8 +102,9 @@ void displayErrors() {
     display.print("Err: ");
     display.print(errors[currentErrorIndex]);
     display.display();
-
-  } else {
+  }
+  else
+  {
     display.clearDisplay();
     display.setCursor(0, 10);
     display.print("Err: None");
@@ -95,7 +112,8 @@ void displayErrors() {
   }
 }
 
-void serialData() {
+void serialData()
+{
   // ---- Serial Debug Output ----
   Serial.print("V:");
   Serial.print(voltage);
@@ -142,13 +160,16 @@ void serialData() {
   // ------------------------------
 }
 
-void dataSend() {
+void dataSend()
+{
   unsigned long currentMillis = millis();
 
-  if (currentMillis - lastSendTime >= 30000) {
+  if (currentMillis - lastSendTime >= 30000)
+  {
     lastSendTime = currentMillis;
 
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
       Ewifi = false;
       StaticJsonDocument<512> doc;
       doc["BoxTemperature"] = temperature;
@@ -164,6 +185,9 @@ void dataSend() {
       doc["batteryPercentage"] = batteryPercentage;
       doc["lightIntensity"] = lightIntensity;
       doc["batteryVoltage"] = batteryVoltage;
+      doc["latitude"] = Latitude;
+      doc["longitude"] = Longitude;
+      doc["THINGSBOARD_TOKEN"] = Token;
 
       String jsonData;
       serializeJson(doc, jsonData);
@@ -173,68 +197,100 @@ void dataSend() {
       http.setTimeout(7000);
       int httpResponseCode = http.POST(jsonData);
 
-      if (httpResponseCode > 0) {
+      if (httpResponseCode > 0)
+      {
         Ehttp = false;
         Serial.print("Response Code: ");
         Serial.println(httpResponseCode);
         String response = http.getString();
         Serial.println("Server Response: " + response);
-      } else {
+      }
+      else
+      {
         Ehttp = true;
         Serial.print("Error code: ");
         Serial.println(httpResponseCode);
       }
       http.end();
-    } else Ewifi = true;
+    }
+    else
+      Ewifi = true;
   }
 }
 
-float voltageToSoC(float v) {
-  if (v >= 4.20) return 100.0;
-  if (v >= 4.10) return 95.0;
-  if (v >= 4.00) return 90.0;
-  if (v >= 3.90) return 80.0;
-  if (v >= 3.80) return 70.0;
-  if (v >= 3.70) return 60.0;
-  if (v >= 3.60) return 45.0;
-  if (v >= 3.50) return 30.0;
-  if (v >= 3.40) return 15.0;
-  if (v >= 3.30) return 5.0;
+float voltageToSoC(float v)
+{
+  if (v >= 4.20)
+    return 100.0;
+  if (v >= 4.10)
+    return 95.0;
+  if (v >= 4.00)
+    return 90.0;
+  if (v >= 3.90)
+    return 80.0;
+  if (v >= 3.80)
+    return 70.0;
+  if (v >= 3.70)
+    return 60.0;
+  if (v >= 3.60)
+    return 45.0;
+  if (v >= 3.50)
+    return 30.0;
+  if (v >= 3.40)
+    return 15.0;
+  if (v >= 3.30)
+    return 5.0;
   return 0.0;
 }
 
-void readPZEM() {
+void readPZEM()
+{
   bool ok = true;
   float v = pzem.voltage();
-  if (!isnan(v)) voltage = v;
-  else ok = false;
+  if (!isnan(v))
+    voltage = v;
+  else
+    ok = false;
   float c = pzem.current();
-  if (!isnan(c)) current = c;
-  else ok = false;
+  if (!isnan(c))
+    current = c;
+  else
+    ok = false;
   float e = pzem.energy();
-  if (!isnan(e)) energy = e;
-  else ok = false;
+  if (!isnan(e))
+    energy = e;
+  else
+    ok = false;
   float p = pzem.power();
-  if (!isnan(p)) power = p;
-  else ok = false;
+  if (!isnan(p))
+    power = p;
+  else
+    ok = false;
   float pf = pzem.pf();
-  if (!isnan(pf)) powerFactor = pf;
-  else ok = false;
+  if (!isnan(pf))
+    powerFactor = pf;
+  else
+    ok = false;
   float f = pzem.frequency();
-  if (!isnan(f)) frequency = f;
-  else ok = false;
+  if (!isnan(f))
+    frequency = f;
+  else
+    ok = false;
   Epem = !ok;
 }
 
-void readSolar() {
+void readSolar()
+{
   solarVoltage = solar.getBusVoltage_V();
   solarCurrent = solar.getCurrent_mA();
   solarPower = solar.getPower_mW();
 }
 
-void readBattery() {
+void readBattery()
+{
   unsigned long now = millis();
-  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
+  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS)
+  {
     float current_mA = battery.getCurrent_mA();
     batteryVoltage = battery.getBusVoltage_V();
 
@@ -244,13 +300,16 @@ void readBattery() {
     float delta_mAh = current_mA * (dt_s / 3600.0f);
     remaining_mAh -= delta_mAh;
 
-    if (remaining_mAh < 0) remaining_mAh = 0;
-    if (remaining_mAh > BATTERY_CAPACITY_mAh) remaining_mAh = BATTERY_CAPACITY_mAh;
+    if (remaining_mAh < 0)
+      remaining_mAh = 0;
+    if (remaining_mAh > BATTERY_CAPACITY_mAh)
+      remaining_mAh = BATTERY_CAPACITY_mAh;
 
     batteryPercentage = (remaining_mAh / BATTERY_CAPACITY_mAh) * 100.0f;
 
     static unsigned long lastCorrection = 0;
-    if (now - lastCorrection >= 5UL * 60UL * 1000UL || fabs(current_mA) < 20.0f) {
+    if (now - lastCorrection >= 5UL * 60UL * 1000UL || fabs(current_mA) < 20.0f)
+    {
       float v_soc = voltageToSoC(batteryVoltage);
       float voltage_est_mAh = (v_soc / 100.0f) * BATTERY_CAPACITY_mAh;
       remaining_mAh = remaining_mAh * 0.90f + voltage_est_mAh * 0.10f;
@@ -259,54 +318,73 @@ void readBattery() {
   }
 }
 
-void readDHT() {
+void readDHT()
+{
   bool ok = true;
   float t = dht.readTemperature();
-  if (!isnan(t)) temperature = t;
-  else ok = false;
+  if (!isnan(t))
+    temperature = t;
+  else
+    ok = false;
   Etem = !ok;
 }
 
-void readLight() {
+void readLight()
+{
   float lux = lightMeter.readLightLevel();
-  if (!isnan(lux) && lux >= 0) {
+  if (!isnan(lux) && lux >= 0)
+  {
     lightIntensity = lux;
     E_light = false;
-  } else {
+  }
+  else
+  {
     E_light = true;
   }
 }
 
-void checkWiFi() {
-  if (WiFi.status() != WL_CONNECTED) {
+void checkWiFi()
+{
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Ewifi = true;
     WiFi.begin(ssid.c_str(), password.c_str());
     int retry = 0;
-    while (WiFi.status() != WL_CONNECTED && retry < 5) {
+    while (WiFi.status() != WL_CONNECTED && retry < 5)
+    {
       delay(500);
       retry++;
     }
     Ewifi = (WiFi.status() != WL_CONNECTED);
-  } else {
+  }
+  else
+  {
     Ewifi = false;
   }
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Wire.begin(21, 22);
   dht.begin();
-  if (!SD.begin(SD_CS)) Esdcard = true;
-  else {
+  if (!SD.begin(SD_CS))
+    Esdcard = true;
+  else
+  {
     ssid = fetch("ssid");
     password = fetch("password");
     serverName = fetch("server");
+    Longitude = fetch("Longitude");
+    Latitude = fetch("Latitude");
+    Token = fetch("Token");
     BATTERY_CAPACITY_mAh = fetch("battery_capacity").toFloat();
     remaining_mAh = BATTERY_CAPACITY_mAh * 0.5;
 
     WiFi.begin(ssid.c_str(), password.c_str());
     int retry = 0;
-    while (WiFi.status() != WL_CONNECTED && retry < 10) {
+    while (WiFi.status() != WL_CONNECTED && retry < 10)
+    {
       delay(500);
       retry++;
     }
@@ -314,27 +392,37 @@ void setup() {
 
   Ewifi = (WiFi.status() == WL_CONNECTED) ? false : true;
 
-  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+  if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE))
+  {
     E_light = true;
   }
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
     Serial.println(F("SSD1306 allocation failed"));
-    while (true) { delay(100); }
+    while (true)
+    {
+      delay(100);
+    }
   }
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
 
-  if (!solar.begin()) E_solar = true;
-  else E_solar = false;
-  if (!battery.begin()) E_battery = true;
-  else E_battery = false;
+  if (!solar.begin())
+    E_solar = true;
+  else
+    E_solar = false;
+  if (!battery.begin())
+    E_battery = true;
+  else
+    E_battery = false;
 
   lastSampleTime = millis();
 }
 
-void loop() {
+void loop()
+{
   readPZEM();
   readSolar();
   readBattery();
@@ -345,4 +433,3 @@ void loop() {
   displayErrors();
   serialData();
 }
-
