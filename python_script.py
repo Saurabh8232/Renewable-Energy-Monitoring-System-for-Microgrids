@@ -5,7 +5,6 @@ app = Flask(__name__)
 
 # ===================== ESP32 + WEATHER STORAGE =====================
 THINGSBOARD_TOKEN = None
-THINGSBOARD_URL = f"http://demo.thingsboard.io/api/v1/{THINGSBOARD_TOKEN}/telemetry"
 box_temp = frequency = power_factor = voltage = current = power = energy = None
 solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = None
 battery_voltage = None
@@ -96,6 +95,7 @@ def receive_data():
         }
 
         # Send to ThingsBoard
+        THINGSBOARD_URL = f"http://demo.thingsboard.io/api/v1/{THINGSBOARD_TOKEN}/telemetry"
         response = requests.post(THINGSBOARD_URL, json=payload, timeout=5)
 
         return (
