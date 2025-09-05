@@ -2,4 +2,9 @@
 
 ## 📋 Problem Statement
 ### Develop an IoT-based monitoring system for solar or wind microgrids in rural areas, providing real-time data on energy generation, storage, and consumption. 
-### The system should alert users to inefficiencies or maintenance needs and improve microgrid efficiency by 15%.
+### The system should alert users to inefficiencies or maintenance needs and improve microgrid efficiency by 15%
+
+
+
+
+# Made with ❤️ for Rural India 
