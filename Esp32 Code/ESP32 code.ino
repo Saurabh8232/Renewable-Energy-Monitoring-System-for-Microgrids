@@ -2,7 +2,7 @@
 #include <Wire.h>
 #include <DHT.h>
 #include <BH1750.h>
-#include <MAX17048.h>
+#include <Adafruit_MAX1704X.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_INA219.h>
@@ -35,7 +35,7 @@ String Token = "";
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 PZEM004Tv30 pzem(Serial2, 16, 17);
 Adafruit_INA219 solar;
-MAX17048 battery;
+Adafruit_MAX17048 battery;
 DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
 
@@ -65,19 +65,19 @@ void displayErrors() {
   const char *errors[8];
   int count = 0;
 
-  if (E_light)   errors[count++] = "Light";
-  if (E_solar)   errors[count++] = "Solar";
+  if (E_light) errors[count++] = "Light";
+  if (E_solar) errors[count++] = "Solar";
   if (E_battery) errors[count++] = "Battery";
-  if (Epem)      errors[count++] = "PZEM";
-  if (Etem)      errors[count++] = "DHT";
-  if (Ewifi)     errors[count++] = "WiFi";
-  if (Ehttp)     errors[count++] = "HTTP";
-  if (Esdcard)   errors[count++] = "SDcard";
+  if (Epem) errors[count++] = "PZEM";
+  if (Etem) errors[count++] = "DHT";
+  if (Ewifi) errors[count++] = "WiFi";
+  if (Ehttp) errors[count++] = "HTTP";
+  if (Esdcard) errors[count++] = "SDcard";
 
   unsigned long now = millis();
 
   if (count > 0) {
-    if (now - lastErrorSwitch >= 2000) {  
+    if (now - lastErrorSwitch >= 2000) {
       currentErrorIndex = (currentErrorIndex + 1) % count;
       lastErrorSwitch = now;
     }
@@ -95,28 +95,46 @@ void displayErrors() {
 }
 
 void serialData() {
-  Serial.print("V:"); Serial.print(voltage);
-  Serial.print(" I:"); Serial.print(current);
-  Serial.print(" P:"); Serial.print(power);
-  Serial.print(" E:"); Serial.print(energy);
-  Serial.print(" PF:"); Serial.print(powerFactor);
-  Serial.print(" F:"); Serial.print(frequency);
+  Serial.print("V:");
+  Serial.print(voltage);
+  Serial.print(" I:");
+  Serial.print(current);
+  Serial.print(" P:");
+  Serial.print(power);
+  Serial.print(" E:");
+  Serial.print(energy);
+  Serial.print(" PF:");
+  Serial.print(powerFactor);
+  Serial.print(" F:");
+  Serial.print(frequency);
 
-  Serial.print(" | SV:"); Serial.print(solarVoltage);
-  Serial.print(" SI:"); Serial.print(solarCurrent);
-  Serial.print(" SP:"); Serial.print(solarPower);
+  Serial.print(" | SV:");
+  Serial.print(solarVoltage);
+  Serial.print(" SI:");
+  Serial.print(solarCurrent);
+  Serial.print(" SP:");
+  Serial.print(solarPower);
 
-  Serial.print(" | BV:"); Serial.print(batteryVoltage);
-  Serial.print(" SoC%: "); Serial.print(batteryPercentage);
+  Serial.print(" | BV:");
+  Serial.print(batteryVoltage);
+  Serial.print(" SoC%: ");
+  Serial.print(batteryPercentage);
 
-  Serial.print(" | T:"); Serial.print(temperature);
-  Serial.print(" | Lux:"); Serial.print(lightIntensity);
+  Serial.print(" | T:");
+  Serial.print(temperature);
+  Serial.print(" | Lux:");
+  Serial.print(lightIntensity);
 
-  Serial.print(" | Errs -> L:"); Serial.print(E_light);
-  Serial.print(" S:"); Serial.print(E_solar);
-  Serial.print(" B:"); Serial.print(E_battery);
-  Serial.print(" P:"); Serial.print(Epem);
-  Serial.print(" D:"); Serial.print(Etem);
+  Serial.print(" | Errs -> L:");
+  Serial.print(E_light);
+  Serial.print(" S:");
+  Serial.print(E_solar);
+  Serial.print(" B:");
+  Serial.print(E_battery);
+  Serial.print(" P:");
+  Serial.print(Epem);
+  Serial.print(" D:");
+  Serial.print(Etem);
   Serial.println();
 }
 
@@ -129,6 +147,14 @@ void dataSend() {
     if (WiFi.status() == WL_CONNECTED) {
       Ewifi = false;
       StaticJsonDocument<512> doc;
+
+      if (E_light) doc["Light"] = "Light sensor not responding";
+      if (E_solar) doc["Solar"] = "Solar sensor initialization failed";
+      if (E_battery) doc["Battery"] = "Battery sensor data unavailable";
+      if (Epem) doc["PZEM"] = "PZEM module communication error";
+      if (Etem) doc["DHT"] = "Temperature sensor not reading";
+      if (Esdcard) doc["SDcard"] = "SD card not detected or unreadable";
+
       doc["BoxTemperature"] = temperature;
       doc["Frequency"] = frequency;
       doc["PowerFactor"] = powerFactor;
@@ -176,29 +202,35 @@ void dataSend() {
 void readPZEM() {
   bool ok = true;
   float v = pzem.voltage();
-  if (!isnan(v)) voltage = v; else ok = false;
+  if (!isnan(v)) voltage = v;
+  else ok = false;
   float c = pzem.current();
-  if (!isnan(c)) current = c; else ok = false;
+  if (!isnan(c)) current = c;
+  else ok = false;
   float e = pzem.energy();
-  if (!isnan(e)) energy = e; else ok = false;
+  if (!isnan(e)) energy = e;
+  else ok = false;
   float p = pzem.power();
-  if (!isnan(p)) power = p; else ok = false;
+  if (!isnan(p)) power = p;
+  else ok = false;
   float pf = pzem.pf();
-  if (!isnan(pf)) powerFactor = pf; else ok = false;
+  if (!isnan(pf)) powerFactor = pf;
+  else ok = false;
   float f = pzem.frequency();
-  if (!isnan(f)) frequency = f; else ok = false;
+  if (!isnan(f)) frequency = f;
+  else ok = false;
   Epem = !ok;
 }
 
 void readSolar() {
   solarVoltage = solar.getBusVoltage_V();
   solarCurrent = solar.getCurrent_mA();
-  solarPower   = solar.getPower_mW();
+  solarPower = solar.getPower_mW();
 }
 
 void readBattery() {
-  float v = battery.getVoltage();
-  float soc = battery.getSOC();
+  float v = battery.cellVoltage();
+  float soc = battery.cellPercent();
   if (!isnan(v) && !isnan(soc)) {
     batteryVoltage = v;
     batteryPercentage = soc;
@@ -242,7 +274,7 @@ void connectWiFiNonBlocking() {
     lastWiFiAttempt = now;
   }
 
-  if (now - lastWiFiAttempt >= 5000) {  
+  if (now - lastWiFiAttempt >= 5000) {
     if (WiFi.status() != WL_CONNECTED) {
       WiFi.disconnect();
       WiFi.begin(ssid.c_str(), password.c_str());
