@@ -12,6 +12,9 @@ temperature = cloudcover = windspeed = precipitation = None
 LAT = LON = IP = None
 payload = {}
 
+# ===================== ESP32 ERROR STORAGE ==============
+E_light = E_solar = E_battery = Epem = Etem = Esdcard = None
+
 # ===================== WEATHER DATA =====================
 def fetch_weather():
     global temperature, cloudcover, windspeed, precipitation
@@ -39,7 +42,7 @@ def receive_data():
     global payload, LAT, LON, THINGSBOARD_TOKEN, IP
     global box_temp, frequency, power_factor, voltage, current, power, energy
     global solar_voltage, solar_current, solar_power, battery_percentage
-    global light_intensity, battery_voltage
+    global light_intensity, battery_voltage, E_light ,E_solar, E_battery, Epem, Etem, Esdcard
 
     try:
         data = request.get_json()
@@ -62,6 +65,12 @@ def receive_data():
         LAT = data.get("latitude")
         LON = data.get("longitude")
         IP = data.get("deviceIP")
+        E_light = data.get("Light")
+        E_solar = data.get("Solar")
+        E_battery = data.get("Battery")
+        Epem = data.get("PZEM")
+        Etem = data.get("DHT")
+        Esdcard = data.get("SDcard")
 
         # Update weather
         fetch_weather()
@@ -90,6 +99,12 @@ def receive_data():
                 "deviceIP": IP,
                 "latitude": LAT,
                 "longitude": LON,
+                "ErrorLight": E_light,
+                "ErrorSolar": E_solar,
+                "ErrorBattery": E_battery,
+                "ErrorPzem": Epem,
+                "ErrorDht":  Etem,
+                "ErrorSDcard": Esdcard,
             }.items()
             if v is not None
         }
