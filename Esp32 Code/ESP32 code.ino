@@ -1,6 +1,5 @@
 #include <PZEM004Tv30.h>
 #include <Wire.h>
-#include <DHT.h>
 #include <BH1750.h>
 #include <Adafruit_MAX1704X.h>
 #include <Adafruit_GFX.h>
@@ -13,9 +12,7 @@
 #include <SD.h>
 #include <WiFi.h>
 
-#define DHTPIN 4
 #define SD_CS 5
-#define DHTTYPE DHT11
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 
@@ -36,19 +33,18 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 PZEM004Tv30 pzem(Serial2, 16, 17);
 Adafruit_INA219 solar;
 Adafruit_MAX17048 battery;
-DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
 
 float frequency = 0.0, powerFactor = 0.0;
 float voltage = 0.0, current = 0.0;
 float power = 0.0, energy = 0.0;
-float temperature = 0.0;
+int inverterLoad = 0;
 float solarVoltage = 0.0, solarCurrent = 0.0;
 float solarPower = 0.0, batteryPercentage = 0.0;
 float lightIntensity = 0.0, batteryVoltage = 0.0;
 
 // Error flags
-bool E_light = false, E_solar = false, E_battery = false, Epem = false, Etem = false, Ewifi = false, Ehttp = false, Esdcard = false;
+bool E_light = false, E_solar = false, E_battery = false, Epem = false, Ewifi = false, Ehttp = false, Esdcard = false;
 
 String fetch(String File_name) {
   String path = String("/ESP32/") + File_name + ".txt";
@@ -62,14 +58,13 @@ String fetch(String File_name) {
 }
 
 void displayErrors() {
-  const char *errors[8];
+  const char *errors[7];
   int count = 0;
 
   if (E_light) errors[count++] = "Light";
   if (E_solar) errors[count++] = "Solar";
   if (E_battery) errors[count++] = "Battery";
   if (Epem) errors[count++] = "PZEM";
-  if (Etem) errors[count++] = "DHT";
   if (Ewifi) errors[count++] = "WiFi";
   if (Ehttp) errors[count++] = "HTTP";
   if (Esdcard) errors[count++] = "SDcard";
@@ -120,8 +115,6 @@ void serialData() {
   Serial.print(" SoC%: ");
   Serial.print(batteryPercentage);
 
-  Serial.print(" | T:");
-  Serial.print(temperature);
   Serial.print(" | Lux:");
   Serial.print(lightIntensity);
 
@@ -133,8 +126,6 @@ void serialData() {
   Serial.print(E_battery);
   Serial.print(" P:");
   Serial.print(Epem);
-  Serial.print(" D:");
-  Serial.print(Etem);
   Serial.println();
 }
 
@@ -152,10 +143,9 @@ void dataSend() {
       if (E_solar) doc["Solar"] = "Solar sensor initialization failed";
       if (E_battery) doc["Battery"] = "Battery sensor data unavailable";
       if (Epem) doc["PZEM"] = "PZEM module communication error";
-      if (Etem) doc["DHT"] = "Temperature sensor not reading";
       if (Esdcard) doc["SDcard"] = "SD card not detected or unreadable";
 
-      doc["BoxTemperature"] = temperature;
+      doc["InverterLoad"] = inverterLoad;
       doc["Frequency"] = frequency;
       doc["PowerFactor"] = powerFactor;
       doc["Voltage"] = voltage;
@@ -240,16 +230,6 @@ void readBattery() {
   }
 }
 
-void readDHT() {
-  float t = dht.readTemperature();
-  if (!isnan(t)) {
-    temperature = t;
-    Etem = false;
-  } else {
-    Etem = true;
-  }
-}
-
 void readLight() {
   float lux = lightMeter.readLightLevel();
   if (!isnan(lux) && lux >= 0) {
@@ -287,7 +267,6 @@ void connectWiFiNonBlocking() {
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);
-  dht.begin();
 
   if (!SD.begin(SD_CS)) {
     Esdcard = true;
@@ -301,6 +280,7 @@ void setup() {
     Longitude = fetch("Longitude");
     Latitude = fetch("Latitude");
     Token = fetch("Token");
+    inverterLoad = fetch("inverterLoad").toInt();
   }
 
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) E_light = true;
@@ -321,7 +301,6 @@ void loop() {
   readPZEM();
   readSolar();
   readBattery();
-  readDHT();
   readLight();
   connectWiFiNonBlocking();
   dataSend();
