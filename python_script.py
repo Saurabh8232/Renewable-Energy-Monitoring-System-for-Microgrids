@@ -111,8 +111,7 @@ def receive_data():
         payload = {
             k: v
             for k, v in {
-                "overload_status": overload_status,
-                "InverterLoad": inverter_load,
+                "InverterLoad": inverter_load, 
                 "Frequency": frequency,
                 "PowerFactor": power_factor,
                 "Voltage": voltage,
@@ -129,14 +128,15 @@ def receive_data():
                 "CloudPercent": cloudcover,
                 "WindSpeed": windspeed,
                 "RainInMM": precipitation,
-                "deviceIP": IP,
+                "deviceIP": IP, 
                 "latitude": LAT,
                 "longitude": LON,
-                "ErrorLight": E_light,
-                "ErrorSolar": E_solar,
-                "ErrorBattery": E_battery,
-                "ErrorPzem": Epem,
-                "ErrorSDcard": Esdcard,
+                "ErrorLight": E_light,              # Light sensor not responding
+                "ErrorSolar": E_solar,              # Solar sensor initialization failed
+                "ErrorBattery": E_battery,          # Battery sensor data unavailable
+                "ErrorPzem": Epem,                  # PZEM-004T communication error
+                "ErrorSDcard": Esdcard,             # SD card not detected or unreadable
+                "overload_status": overload_status, # Invalid or missing load data || High Load Warning. (450W / 500W) || Load Normal (350.00 W) || Overload! (550W > 500W)
             }.items()
             if v is not None
         }
