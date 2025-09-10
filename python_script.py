@@ -7,7 +7,7 @@ app = Flask(__name__)
 THINGSBOARD_TOKEN = None
 frequency = power_factor = voltage = current = power = energy = None
 solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = None
-battery_voltage, inverter_load, overload_status = None
+battery_voltage = inverter_load = overload_status = None
 temperature = cloudcover = windspeed = precipitation = None
 LAT = LON = IP = None
 payload = {}
