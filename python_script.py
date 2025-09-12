@@ -10,7 +10,7 @@ frequency = power_factor = voltage = current = power = energy = None
 solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = None
 battery_voltage = inverter_load = prev_batterypercent = prev_time= None
 temperature = cloudcover = windspeed = precipitation = irradiance = prev_irradiance = None
-LAT = LON = IP = E_light = E_solar = E_battery = Epem = Esdcard = None
+LAT = LON = IP = RoomEsp = None
 battery_alert = solar_alert = overload_status = sunlight_alert = charging_alert = None
 payload = {}
 
@@ -126,7 +126,7 @@ def receive_data():
     global payload, LAT, LON, THINGSBOARD_TOKEN, IP, inverter_load, prev_batterypercent
     global frequency, power_factor, voltage, current, power, energy, prev_irradiance
     global solar_voltage, solar_current, solar_power, battery_percentage, overload_status
-    global light_intensity, battery_voltage, E_light, E_solar, E_battery, Epem, Esdcard
+    global light_intensity, battery_voltage, RoomEsp
     global battery_alert, solar_alert, sunlight_alert, charging_alert
     try:
         data = request.get_json()
@@ -149,11 +149,7 @@ def receive_data():
         LAT = data.get("latitude")
         LON = data.get("longitude")
         IP = data.get("deviceIP")
-        E_light = data.get("Light")
-        E_solar = data.get("Solar")
-        E_battery = data.get("Battery")
-        Epem = data.get("PZEM")
-        Esdcard = data.get("SDcard")
+        RoomEsp = data.get("RoomEsp")
 
         #update time
         prev_time = time.time()
@@ -192,11 +188,7 @@ def receive_data():
                 "deviceIP": IP,
                 "latitude": LAT,
                 "longitude": LON,
-                "ErrorLight": E_light,  # Light sensor not responding
-                "ErrorSolar": E_solar,  # Solar sensor initialization failed
-                "ErrorBattery": E_battery,  # Battery sensor data unavailable
-                "ErrorPzem": Epem,  # PZEM-004T communication error
-                "ErrorSDcard": Esdcard,  # SD card not detected or unreadable
+                "RoomEsp": RoomEsp,
                 "battery_alert": battery_alert,  # Battery fully charged (100%) - Overcharge risk! || Battery critically low (<15%) - Discharge risk!
                 "solar_alert": solar_alert,  # Sunlight strong but solar panel underperforming (900-1200 W/m²) || Sunlight moderate but solar panel underperforming (600-900 W/m²) || Sunlight low but solar panel underperforming (350-600 W/m²) || Sunlight very low but solar panel underperforming (150-350 W/m²) || Unexpected power generated in very low sunlight (<150 W/m²)
                 "sunlight_alert": sunlight_alert,  # Sudden drop in sunlight detected!
