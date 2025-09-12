@@ -5,22 +5,18 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_INA219.h>
+#include <HardwareSerial.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <math.h>
 #include <SPI.h>
 #include <SD.h>
 #include <WiFi.h>
+#include <esp_now.h>
 
 #define SD_CS 5
 #define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 32
-
-unsigned long lastErrorSwitch = 0;
-int currentErrorIndex = 0;
-unsigned long lastSendTime = 0;
-unsigned long lastWiFiAttempt = 0;
-bool wifiConnecting = false;
+#define SCREEN_HEIGHT 64
 
 String ssid = "";
 String password = "";
@@ -28,9 +24,12 @@ String serverName = "";
 String Longitude = "";
 String Latitude = "";
 String Token = "";
+String RoomEsp = "";
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-PZEM004Tv30 pzem(Serial2, 16, 17);
+HardwareSerial wifiDevice(1);
+HardwareSerial pzemSerial(2);
+PZEM004Tv30 pzem(pzemSerial, 16, 17);
 Adafruit_INA219 solar;
 Adafruit_MAX17048 battery;
 BH1750 lightMeter;
@@ -42,6 +41,8 @@ int inverterLoad = 0;
 float solarVoltage = 0.0, solarCurrent = 0.0;
 float solarPower = 0.0, batteryPercentage = 0.0;
 float lightIntensity = 0.0, batteryVoltage = 0.0;
+
+uint8_t broadcastAddress[] = { 0x3C, 0x8A, 0x1F, 0x0A, 0x05, 0xE0 };
 
 // Error flags
 bool E_light = false, E_solar = false, E_battery = false, Epem = false, Ewifi = false, Ehttp = false, Esdcard = false;
@@ -57,36 +58,86 @@ String fetch(String File_name) {
   return data;
 }
 
+template<typename A>
+void write(String File_name, A Data) {
+  String path = String("/ESP32/") + File_name + ".txt";
+  File file = SD.open(path, FILE_WRITE);
+  if (file) {
+    file.println(String(Data));
+    file.close();
+    Serial.println("kjfdsjldfgjshlgkjfgvjksdhhlgh;dfknnmvkljfgh;kjdhgfhjsdhnfkjhsjkghaljhkjghajkljlkadsj;fklsjvlhfksdlhfasdjkfhdsjaglf");
+  } 
+}
+
+void onSend(const esp_now_send_info_t* info, esp_now_send_status_t status) {
+  if (status == ESP_NOW_SEND_SUCCESS) {
+    RoomEsp = "Connected";
+  } else RoomEsp = "Disconnected";
+}
+
+void sendToRoomEsp() {
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["RoomESP"] = overLoading();
+
+  size_t jsonSize = measureJson(jsonDoc) + 1;
+  char jsonBuffer[jsonSize];
+  serializeJson(jsonDoc, jsonBuffer, jsonSize);
+  esp_now_send(broadcastAddress, (uint8_t*)jsonBuffer, jsonSize);
+}
+
+String overLoading() {
+  String roomEsp;
+  float overload_limit = inverterLoad * 1.00;
+  if (power > overload_limit) roomEsp = "false";
+  else roomEsp = "true";
+  return roomEsp;
+}
+
 void displayErrors() {
-  const char *errors[7];
-  int count = 0;
+  String a;
 
-  if (E_light) errors[count++] = "Light";
-  if (E_solar) errors[count++] = "Solar";
-  if (E_battery) errors[count++] = "Battery";
-  if (Epem) errors[count++] = "PZEM";
-  if (Ewifi) errors[count++] = "WiFi";
-  if (Ehttp) errors[count++] = "HTTP";
-  if (Esdcard) errors[count++] = "SDcard";
+  if (E_light) a += "Light.";
+  if (E_solar) a += "Solar.";
+  if (E_battery) a += "Battery.";
+  if (Epem) a += "PZEM.";
+  if (Ewifi) a += "WiFi.";
+  if (Ehttp) a += "HTTP.";
+  if (Esdcard) a += "SDcard.";
 
-  unsigned long now = millis();
 
-  if (count > 0) {
-    if (now - lastErrorSwitch >= 2000) {
-      currentErrorIndex = (currentErrorIndex + 1) % count;
-      lastErrorSwitch = now;
-    }
-    display.clearDisplay();
-    display.setCursor(0, 10);
-    display.print("Err: ");
-    display.print(errors[currentErrorIndex]);
-    display.display();
-  } else {
-    display.clearDisplay();
-    display.setCursor(0, 10);
-    display.print("Err: None");
-    display.display();
-  }
+  display.clearDisplay();
+  display.setCursor(0, 0);
+
+  display.print("Solar Gen.  : ");
+  display.print(random(10, 500));
+  display.println(" WH");
+
+  display.print("Inver. Load : ");
+  display.print(random(10, 500));
+  display.println(" WH");
+
+  display.print("Battery     : ");
+  display.print(batteryPercentage, 1);
+  display.println(" %");
+  display.println("");
+  display.print(a);
+  display.display();
+}
+
+void RANDOMdata() {
+  frequency = random(49, 50);
+  powerFactor = random(9, 1);
+  voltage = random(218, 230);
+  current = random(1, 10);
+  power = voltage * current;
+  energy = random(12, 18);
+  inverterLoad = 3000;
+  solarVoltage = random(200, 500);
+  solarCurrent = random(1, 5);
+  solarPower = solarVoltage * solarCurrent;
+  batteryPercentage = random(10, 100);
+  lightIntensity = random(200, 999);
+  batteryVoltage = random(3.6, 4.8);
 }
 
 void serialData() {
@@ -125,67 +176,57 @@ void serialData() {
   Serial.print(" B:");
   Serial.print(E_battery);
   Serial.print(" P:");
-  Serial.print(Epem);
+  Serial.println(Epem);
+  Serial.print("RoomEsp : ");
+  Serial.println(RoomEsp);
   Serial.println();
 }
 
-void dataSend() {
-  unsigned long currentMillis = millis();
+void dataSendToEsp8266() {
+  StaticJsonDocument<512> doc;
 
-  if (currentMillis - lastSendTime >= 30000) {
-    lastSendTime = currentMillis;
+  doc["InverterLoad"] = inverterLoad;
+  doc["Frequency"] = frequency;
+  doc["PowerFactor"] = powerFactor;
+  doc["Voltage"] = voltage;
+  doc["Current"] = current;
+  doc["Power"] = power;
+  doc["Energy"] = energy;
+  doc["solarVoltage"] = solarVoltage;
+  doc["solarCurrent"] = solarCurrent;
+  doc["solarPower"] = solarPower;
+  doc["batteryPercentage"] = batteryPercentage;
+  doc["batteryVoltage"] = batteryVoltage;
+  doc["lightIntensity"] = lightIntensity;
+  doc["latitude"] = Latitude;
+  doc["longitude"] = Longitude;
+  doc["THINGSBOARD_TOKEN"] = Token;
+  doc["Server"] = serverName;
+  doc["Ssid"] = ssid;
+  doc["Password"] = password;
+  doc["RoomEsp"] = RoomEsp;
 
-    if (WiFi.status() == WL_CONNECTED) {
-      Ewifi = false;
-      StaticJsonDocument<512> doc;
+  Serial.println("Sending data to WiFi Device: ");
+  serializeJson(doc, wifiDevice);
+  wifiDevice.println();
+  serializeJson(doc, Serial);
+  Serial.println();
 
-      if (E_light) doc["Light"] = "Light sensor not responding";
-      if (E_solar) doc["Solar"] = "Solar sensor initialization failed";
-      if (E_battery) doc["Battery"] = "Battery sensor data unavailable";
-      if (Epem) doc["PZEM"] = "PZEM module communication error";
-      if (Esdcard) doc["SDcard"] = "SD card not detected or unreadable";
+  if (wifiDevice.available()) {
+    String response = wifiDevice.readStringUntil('\n');
+    Serial.print("Received from ESP8266: ");
+    Serial.println(response);
 
-      doc["InverterLoad"] = inverterLoad;
-      doc["Frequency"] = frequency;
-      doc["PowerFactor"] = powerFactor;
-      doc["Voltage"] = voltage;
-      doc["Current"] = current;
-      doc["Power"] = power;
-      doc["Energy"] = energy;
-      doc["solarVoltage"] = solarVoltage;
-      doc["solarCurrent"] = solarCurrent;
-      doc["solarPower"] = solarPower;
-      doc["batteryPercentage"] = batteryPercentage;
-      doc["batteryVoltage"] = batteryVoltage;
-      doc["lightIntensity"] = lightIntensity;
-      doc["latitude"] = Latitude;
-      doc["longitude"] = Longitude;
-      doc["THINGSBOARD_TOKEN"] = Token;
-      doc["deviceIP"] = WiFi.localIP().toString();
+    StaticJsonDocument<300> doc1;
+    deserializeJson(doc1, response);
 
-      String jsonData;
-      serializeJson(doc, jsonData);
-      HTTPClient http;
-      http.begin(serverName);
-      http.addHeader("Content-Type", "application/json");
-      http.setTimeout(7000);
-      int httpResponseCode = http.POST(jsonData);
+    String a = doc1["Ewifi"].as<String>();
+    if (a != "false") Ewifi = false;
+    else if (a != "true") Ewifi = true;
 
-      if (httpResponseCode > 0) {
-        Ehttp = false;
-        Serial.print("Response Code: ");
-        Serial.println(httpResponseCode);
-        String response = http.getString();
-        Serial.println("Server Response: " + response);
-      } else {
-        Ehttp = true;
-        Serial.print("Error code: ");
-        Serial.println(httpResponseCode);
-      }
-      http.end();
-    } else {
-      Ewifi = true;
-    }
+    String b = doc1["Ehttp"].as<String>();
+    if (b != "false") Ehttp = false;
+    else if (b != "true") Ehttp = true;
   }
 }
 
@@ -240,39 +281,38 @@ void readLight() {
   }
 }
 
-void connectWiFiNonBlocking() {
-  if (WiFi.status() == WL_CONNECTED) {
-    Ewifi = false;
-    wifiConnecting = false;
+void setupESPNow() {
+  WiFi.mode(WIFI_STA);
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
     return;
   }
+  esp_now_register_send_cb(onSend);
 
-  unsigned long now = millis();
-  if (!wifiConnecting) {
-    WiFi.begin(ssid.c_str(), password.c_str());
-    wifiConnecting = true;
-    lastWiFiAttempt = now;
-  }
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
 
-  if (now - lastWiFiAttempt >= 5000) {
-    if (WiFi.status() != WL_CONNECTED) {
-      WiFi.disconnect();
-      WiFi.begin(ssid.c_str(), password.c_str());
-      lastWiFiAttempt = now;
-    }
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Failed to add peer");
+    return;
   }
-  Ewifi = (WiFi.status() != WL_CONNECTED);
 }
 
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);
+  pzemSerial.begin(9600, SERIAL_8N1, 16, 17);
+  wifiDevice.begin(115200, SERIAL_8N1, 32, 33);
+  setupESPNow();
 
   if (!SD.begin(SD_CS)) {
     Esdcard = true;
     ssid = "OnePlus";
     password = "";
     serverName = "https://renewable-energy-monitoring-system-for.onrender.com/esp32-data";
+    Token = "rozHpF7JqlEw6XnPluAF";
   } else {
     ssid = fetch("ssid");
     password = fetch("password");
@@ -281,6 +321,14 @@ void setup() {
     Latitude = fetch("Latitude");
     Token = fetch("Token");
     inverterLoad = fetch("inverterLoad").toInt();
+
+    write("inverterLoad", 700);
+    write("Token", "rozHpF7JqlEw6XnPluAF");
+    write("Latitude", 28.30);
+    write("Longitude", 79.49);
+    write("server", "https://renewable-energy-monitoring-system-for.onrender.com/esp32-data");
+    write("password", "");
+    write("ssid", "OnePlus");
   }
 
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) E_light = true;
@@ -298,12 +346,14 @@ void setup() {
 }
 
 void loop() {
-  readPZEM();
-  readSolar();
-  readBattery();
-  readLight();
-  connectWiFiNonBlocking();
-  dataSend();
+  RANDOMdata();
+
+  // readPZEM();
+  // readSolar();
+  // readBattery();
+  // readLight();
+  sendToRoomEsp();
+  dataSendToEsp8266();
   displayErrors();
   serialData();
 }
