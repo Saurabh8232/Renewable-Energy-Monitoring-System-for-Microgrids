@@ -9,7 +9,7 @@
 
 ### Typical components used in the prototype (adjust to your actual BOM):
 ### ESP32 development board for data acquisition and MQTT/HTTP transmission
-### Current sensors (e.g., SCT-013) or hall-effect sensors
+### Current sensors (e.g., PZEM-004T,BH1750,INA219,Li-Ion Battery 3.7V 2500mAh,DC to DC Buck Converter,OLED Display,Solar Plate 6V 60mA,SD Card Module,Max17048) or hall-effect sensors
 ### Voltage sensing divider (for AC/DC measurement where required)
 ### Solar panel(s) and charge controller
 ### Battery (Li-ion / lead-acid) with BMS
@@ -19,3 +19,4 @@
 
 
 # Made with ❤️ for Rural India 
+
