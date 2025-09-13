@@ -65,7 +65,6 @@ void write(String File_name, A Data) {
   if (file) {
     file.println(String(Data));
     file.close();
-    Serial.println("kjfdsjldfgjshlgkjfgvjksdhhlgh;dfknnmvkljfgh;kjdhgfhjsdhnfkjhsjkghaljhkjghajkljlkadsj;fklsjvlhfksdlhfasdjkfhdsjaglf");
   } 
 }
 
@@ -357,3 +356,4 @@ void loop() {
   displayErrors();
   serialData();
 }
+
