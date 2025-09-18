@@ -136,7 +136,7 @@ def receive_data():
     global payload, LAT, LON, THINGSBOARD_TOKEN, IP, inverter_load, prev_batterypercent
     global frequency, power_factor, voltage, current, power, energy, prev_irradiance
     global solar_voltage, solar_current, solar_power, battery_percentage, overload_status
-    global light_intensity, battery_voltage, RoomEsp
+    global light_intensity, battery_voltage, RoomEsp, prev_time
     global battery_alert, solar_alert, sunlight_alert, charging_alert
     try:
         data = request.get_json()
