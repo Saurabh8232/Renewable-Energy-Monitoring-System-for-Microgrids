@@ -8,9 +8,10 @@ app = Flask(__name__)
 THINGSBOARD_TOKEN = None
 frequency = power_factor = voltage = current = power = energy = None
 solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = None
-battery_voltage = inverter_load = prev_batterypercent = prev_time= None
+battery_voltage = inverter_load = prev_batterypercent = None
 temperature = cloudcover = windspeed = precipitation = irradiance = prev_irradiance = None
 LAT = LON = IP = RoomEsp = None
+prev_time = time.time()
 battery_alert = solar_alert = overload_status = sunlight_alert = charging_alert = None
 payload = {}
 
@@ -21,12 +22,16 @@ def generate_alerts():
     global solar_power, voltage, current, inverter_load, overload_status, power
     global battery_percentage, light_intensity, prev_batterypercent, prev_irradiance
 
+
     # Reset alerts and calculate irradiance
     battery_alert = solar_alert = overload_status = sunlight_alert = charging_alert = None
     irradiance = light_intensity / 120 
 
     # Fixed timegap (seconds)
-    timegap = time.time() - prev_time
+    if prev_time is None:
+        timegap = 0
+    else:
+        timegap = time.time() - prev_time
 
     # ----- 1. Battery Overcharge / Low -----
     if battery_percentage is not None:
@@ -152,7 +157,10 @@ def receive_data():
         RoomEsp = data.get("RoomEsp")
 
         #update time
-        prev_time = time.time()
+         if prev_time is None:
+            prev_time = time.time()
+        else:
+            prev_time = time.time()
 
         # Update weather
         fetch_weather()
