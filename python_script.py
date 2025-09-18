@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import requests
 import time
 
@@ -225,7 +225,7 @@ def receive_data():
 @app.route("/")
 def home():
     global payload
-    return jsonify(payload)  # always return latest stored payload
+    return render_template("dashboard.html", data=payload)
 
 
 # ===================== MAIN APP =====================
