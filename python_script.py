@@ -7,13 +7,9 @@ app = Flask(__name__)
 # ===================== ESP32 + WEATHER STORAGE ==========
 THINGSBOARD_TOKEN = None
 frequency = power_factor = voltage = current = power = energy = None
-solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = (
-    None
-)
+solar_voltage = solar_current = solar_power = battery_percentage = light_intensity = None
 battery_voltage = inverter_load = prev_batterypercent = None
-temperature = cloudcover = windspeed = precipitation = irradiance = prev_irradiance = (
-    None
-)
+temperature = cloudcover = windspeed = precipitation = irradiance = prev_irradiance = None
 LAT = LON = IP = RoomEsp = None
 prev_time = time.time()
 battery_alert = solar_alert = overload_status = sunlight_alert = charging_alert = None
