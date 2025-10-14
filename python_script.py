@@ -98,7 +98,7 @@ def generate_alerts():
                 charging_alert = "Solar generating power but battery not charging!"
 
 
-# ===================== WEATHER DATA ===================
+# ===================== WEATHER DATA ===================+
 
 
 def safe_first(lst):
