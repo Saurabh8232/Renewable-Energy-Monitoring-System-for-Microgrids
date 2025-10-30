@@ -14,9 +14,6 @@
 ### Solar panel(s) and charge controller
 ### Battery (Li-ion / lead-acid) with BMS
 ### Wiring, connectors, prototyping board / enclosure
-## Schematic and photos 
-<img width="1024" height="1024" alt="Image" src="https://github.com/user-attachments/assets/0d3aab43-ef56-4b5f-8c14-033e9898ced6" />
-
 
 # Made with ❤️ for Rural India 
 
